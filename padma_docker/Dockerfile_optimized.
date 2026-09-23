@@ -1,0 +1,46 @@
+# -----------------------------
+# Stage 1: Build & Composer Dependencies
+# -----------------------------
+FROM composer:latest AS vendor
+
+WORKDIR /app
+
+# ক্যাশিং অপ্টিমাইজেশনের জন্য শুধু composer ফাইলগুলো আগে কপি
+COPY composer.json composer.lock ./
+
+# নো-ইন্টারঅ্যাক্টিভ ও ডেভেলপমেন্ট ছাড়া ডিপেনডেন্সি ইনস্টল
+RUN composer install \
+    --no-interaction \
+    --prefer-dist \
+    --ignore-platform-reqs \
+    --optimize-autoloader \
+    --no-scripts
+
+# -----------------------------
+# Stage 2: Final Lightweight Runtime
+# -----------------------------
+FROM php:8.3-cli-alpine
+
+# বিল্ড ডিপেনডেন্সি ও এক্সটেনশন ইনস্টল (কাজ শেষেই বিল্ডার প্যাকেজ রিমুভ)
+RUN apk add --no-cache libzip \
+    && apk add --no-cache --virtual .build-deps \
+       $PHPIZE_DEPS \
+       libzip-dev \
+    && docker-php-ext-install pdo_mysql zip \
+    && apk del .build-deps \
+    && rm -rf /tmp/* /var/cache/apk/*
+
+WORKDIR /app
+
+# সম্পূর্ণ কোড কপি
+COPY . .
+
+# ১ম স্টেজ থেকে শুধু ভেন্ডর ডিরেক্টরি কপি (যাতে কম্পোজার টুলস ফাইনালে না থাকে)
+COPY --from=vendor /app/vendor /app/vendor
+
+# ডাম্প-অটোলোড রান করা (যদি কোড ক্লাসের দরকার হয়)
+RUN php -r "file_exists('artisan') && passthru('php artisan package:discover --ansi');"
+
+EXPOSE 8000
+
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
