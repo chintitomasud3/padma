@@ -40,3 +40,16 @@ Copyright (C) 2014-2021 Greenbone AG
 License GPLv2+: GNU GPL version 2 or later
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
+
+## Scanner service manually start
+
+mkdir -p /run/ospd
+ospd-openvas --unix-socket /run/ospd/ospd-openvas.sock --pid-file /run/ospd/ospd-openvas.pid
+
+
+
+
+
+
+##onek pore
+greenbone-feed-sync --type nvt
